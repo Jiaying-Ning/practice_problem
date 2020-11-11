@@ -1,0 +1,73 @@
+---
+title: "data wrangling II"
+author: "jiaying Ning"
+date: "10/20/2020"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(rvest)
+library(httr)
+```
+
+by using limit, you do not need so much data, you are limiting to use just a limited number defined by you
+parsing failure
+
+```{r}
+api_url = "http://data.cityofnewyork.us/resource/43nn-pn8j.csv"
+
+rest_inspection =
+  GET(api_url,query = list("$limit"=5000)) %>% 
+  content("parsed")
+
+```
+```{r}
+rest_inspection %>%
+  count(boro,grade)%>%
+  pivot_wider(names_from = grade, values_from = n)
+```
+```{r}
+rest_inspections = 
+rest_inspection %>%
+  filter(grade %in% c("A","B","C")) #i am not looking at grade I Dont know
+
+```
+
+```{r}
+rest_inspections %>%
+  filter(str_detect(dba,"P")) # i want to find pizza, so I enter a description for P, however we cannot capture all pizza, some are smaller cases
+
+```
+
+```{r}
+rest_inspections %>%
+  mutate(dba = str_to_upper(dba))%>% 
+  filter(str_detect(dba,"PIZZ")) %>% 
+  count(boro,grade) %>%
+  pivot_wider(names_from=grade, values_from = n)
+```
+
+```{r}
+rest_inspections %>%
+  mutate(dba = str_to_upper(dba))%>% 
+  filter(str_detect(dba,"PIZZ")) %>%
+  ggplot(aes(x=boro))+
+  geom_bar()+
+  facet_wrap(. ~grade)
+```
+
+```{r}
+nap_dyn_url = "http://www.amazon.com/product-reviews/B00005JNBQ/ref=cm_cr_arp_d_viewopt_rvwer?ie=UTF&reviewerType=avp_only_reviews&sortBy=recent&pageNumber=1"
+
+napoleon_html=read_html(nap_dyn_url)
+
+review_titles = 
+  napoleon_html %>%
+  html_nodes(".a-text-bold span")%>%
+  html_text()
+
+review_text=
+  napoleon_html 
+```
+

@@ -1,0 +1,183 @@
+---
+title: "practice_function"
+author: "jiaying Ning"
+date: "11/11/2020"
+output: html_document
+---
+
+## do something simple 
+```{r}
+x_vec = rnorm(30, mean=5,sd=3)
+
+(x_vec - mean(x_vec))/sd(x_vec)
+```
+
+I want a function to compute z-score
+```{r}
+ 
+z_score = function(x){
+  
+  z= (x - mean(x))/sd(x)
+  
+  return(z)
+}
+  
+
+z_score(x_vec)
+
+```
+
+
+try my function on some other things
+that could go wrong
+```{r, error = TRUE}
+z_score(3)
+
+z_score(mtcars)
+
+z_score(mtcars$mpg)
+
+z_score(c(TRUE, TRUE, FALSE,TRUE)) #take a 1101
+
+```
+
+that could go wrong
+
+```{r, error = TRUE}
+z_score = function(x){
+  
+  if(!is.numeric(x)){stop("input must be numeric")}
+  z= (x - mean(x))/sd(x)
+  
+  return(z)
+}
+  
+
+z_score(x_vec)
+```
+
+that could go wrong
+
+```{r, error = TRUE}
+z_score(3)
+
+
+z_score(c(TRUE, TRUE, FALSE,TRUE)) #take a 1101
+```
+```{r}
+z_score = function(x){
+  
+  if(!is.numeric(x)){stop("input must be numeric")}
+  if(length(x)<3){
+    stop("Input must have at least 3 number")
+  }
+  z= (x - mean(x))/sd(x)
+  
+  return(z)
+}
+  
+
+z_score(x_vec)
+```
+
+
+#Multiple Output
+```{r}
+library(tibble)
+mean_and_sd = function(x){
+  
+  if(!is.numeric(x)){stop("input must be numeric")}
+  if(length(x)<3){
+    stop("Input must have at least 3 number")
+  }
+mean_x=mean(x)
+sd_x=sd(x)
+
+tibble(
+  mean=mean_x,
+  sd=sd_x
+)
+
+}
+  
+```
+
+check if the funciton works
+
+```{r}
+x_vec=rnorm(1000, mean=2, sd=4)
+mean_and_sd(x_vec)
+```
+
+## Multiple Inputs
+
+```{r}
+library(dplyr)
+sim_data = 
+  tibble(
+    x = rnorm(100,mean=4,sd=3)
+  )
+
+# three input sample size, mean, sd
+sim_data %>%
+  summarize(
+  mean = mean(x),
+sd=sd(x))
+
+```
+
+```{r}
+sim_mean_sd = function(sample_size,mu,sigma){
+  sim_data = 
+  tibble(
+    x = rnorm(n=sample_size,mean=mu,sd=sigma)
+  )
+
+# three input sample size, mean, sd
+sim_data %>%
+  summarize(
+  mean = mean(x),
+sd=sd(x))
+}
+```
+
+```{r}
+sim_mean_sd(100,6,3)
+#position matching
+#n=100, mu=6, sd=3
+```
+
+
+
+
+```{r}
+sim_mean_sd(sample_size=100,mu=6,sigma=3)
+sim_mean_sd(mu=6,sigma=3,sample_size=100)
+
+#name matching
+```
+```{r}
+sim_mean_sd = function(sample_size,mu=3,sigma=3){
+  sim_data = 
+  tibble(
+    x = rnorm(n=sample_size,mean=mu,sd=sigma)
+  )
+
+# three input sample size, mean, sd
+sim_data %>%
+  summarize(
+  mean = mean(x),
+sd=sd(x))
+}
+
+#if you set the input value, these value will be default value one no value is put in. But if you put in other value, it will be overwritten
+
+
+sim_mean_sd(sample_size=100)
+```
+
+
+```{r}
+
+```
+
