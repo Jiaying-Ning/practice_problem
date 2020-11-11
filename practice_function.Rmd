@@ -177,7 +177,31 @@ sim_mean_sd(sample_size=100)
 ```
 
 
-```{r}
 
+
+```{r}
+f = function(x) {
+  z = x + y
+  z
+}
+
+x = 1
+y = 2
+
+f(x = y)
+
+#this means you input y for x
+```
+
+```{r}
+my_summary = function(x,sum_func){
+  sum_func(x)
+}
+
+#you can also input funciton
+```
+
+```{r}
+my_summary(x_vec,mean)
 ```
 
