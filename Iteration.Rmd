@@ -5,3 +5,248 @@ date: "11/11/2020"
 output: html_document
 ---
 
+```{r}
+library(tidyverse)
+library(dplyr)
+set.seed(1)
+```
+
+## list
+
+you can put anythingin a list
+```{r}
+l = list(
+vec_numeric = 5:8,
+vec_logical = c(TRUE, TRUE, FALSE, TRUE, FALSE,FALSE),
+mat = matrix(1:8, nrow = 2, ncol = 4),
+summary = summary(rnorm(100))
+)
+```
+
+```{r}
+l
+
+```
+```{r}
+# all of these create exact same output
+l$vec_numeric
+l[[1]]
+l[["vec_numeric"]]
+mean(l[["vec_numeric"]])
+
+```
+
+
+# for loop
+```{r}
+list_norms = 
+  list(
+    a = rnorm(20, 3, 1),
+    b = rnorm(30, 0, 5),
+    c = rnorm(40, 10, .2),
+    d = rnorm(10, -3, 1)
+  )
+
+is.list(list_norms)
+
+```
+
+```{r}
+list_norms
+```
+
+
+pause and get the old function
+
+```{r}
+library(tibble)
+mean_and_sd = function(x){
+  
+  if(!is.numeric(x)){stop("input must be numeric")}
+  if(length(x)<3){
+    stop("Input must have at least 3 number")
+  }
+mean_x=mean(x)
+sd_x=sd(x)
+
+tibble(
+  mean=mean_x,
+  sd=sd_x
+)
+
+}
+```
+
+I can apply that function to each list of element
+```{r}
+mean_and_sd(list_norms[[1]])
+mean_and_sd(list_norms[[2]])
+mean_and_sd(list_norms[[3]])
+mean_and_sd(list_norms[[4]])
+
+```
+
+# lets use for loop
+
+```{r}
+output = vector("list", length = 4) #empty ist with length of 4
+
+output[[1]] = mean_and_sd(list_norms[[1]])
+
+for (i in 1:4) {
+  output[[i]] = mean_and_sd(list_norms[[i]])
+}
+
+output
+```
+
+
+## lets try map!!
+```{r}
+library(purrr)
+output= map(list_norms,mean_and_sd)
+output
+```
+
+what if you want different function
+```{r}
+output = map(list_norms,mean)
+output
+```
+
+can be funciton you wrote, or a embeded function
+
+```{r}
+output = map_dbl(list_norms,mean)
+output#list as number
+
+```
+```{r}
+output= map_df(list_norms,mean_and_sd, .id = "input") # keep track of what input are, and put them in column named input
+output
+```
+
+# List columns!
+
+
+```{r}
+listcol_df = 
+  tibble(
+    name = c("a","b","c","d"),
+    sample = list_norms
+  )
+```
+
+```{r}
+listcol_df %>% pull(name)
+listcol_df %>% pull(sample)
+listcol_df %>% 
+  filter (name =="a")
+# this is a data frame, but in one column, you have list in that column
+# You still can do everything you want to do with dataframe
+```
+
+Lets try some operation
+```{r}
+listcol_df$sample #produce a list
+```
+```{r}
+listcol_df$sample[[1]] #give you the first element of the list
+mean_and_sd(listcol_df$sample[[1]])
+
+```
+
+# Can I just map
+
+```{r}
+map(listcol_df$sample,mean_and_sd)
+#it worked the same!!!
+```
+
+if you want to save the output to the same dataframe:
+add a list column to the dataframe
+```{r}
+listcol_df=
+listcol_df %>%
+  mutate(
+    summary = map(sample,mean_and_sd),
+    medians = (map_dbl(sample,median)))
+```
+
+
+## weather data
+
+```{r}
+weather_df = 
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728", "USC00519397", "USS0023B17S"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2017-01-01",
+    date_max = "2017-12-31") %>%
+  mutate(
+    name = recode(
+      id, 
+      USW00094728 = "CentralPark_NY", 
+      USC00519397 = "Waikiki_HA",
+      USS0023B17S = "Waterhole_WA"),
+    tmin = tmin / 10,
+    tmax = tmax / 10) %>%
+  select(name, id, everything())
+```
+get our list columns ...
+
+you want one data frame for each location
+```{r}
+weather_nest = 
+  weather_df %>%
+  nest(data = date:tmin) #new column called data
+```
+
+```{r}
+weather_nest %>% pull(name)
+weather_nest %>% pull(data)
+```
+```{r}
+weather_nest$data[[3]]
+```
+suppose I want to regree tamx on tmin for each station
+```{r}
+
+  lm(tmax ~ tmin, data = weather_nest$data[[1]])
+  lm(tmax ~ tmin, data = weather_nest$data[[2]])
+  lm(tmax ~ tmin, data = weather_nest$data[[3]])
+
+```
+
+let's write a function
+```{r}
+weather_lm = function(df) {
+    lm(tmax ~ tmin, data = df)
+
+}
+
+output = vector("list",3)
+
+for (i in 1:3){
+  output[[i]] = weather_lm(weather_nest$data[[i]])
+}
+
+
+
+```
+
+what about map
+```{r}
+map(weather_nest$data,weather_lm)
+```
+still work
+
+# waht about a map in a list column???
+
+add a column!!!
+```{r}
+weather_nest =
+weather_nest %>%
+  mutate(models = map(data,weather_lm))
+```
+
