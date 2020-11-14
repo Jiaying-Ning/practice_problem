@@ -1,0 +1,173 @@
+---
+title: "simulation"
+author: "jiaying Ning"
+date: "11/13/2020"
+output: html_document
+---
+```{r}
+library(tidyverse)
+library(rvest)
+```
+
+## lets simulate something
+
+```{r}
+sim_mean_sd = function(n, mu = 2, sigma = 3) {
+  
+  sim_data = tibble(
+    x = rnorm(n, mean = mu, sd = sigma),
+  )
+  
+  sim_data %>% 
+    summarize(
+      mu_hat = mean(x),
+      sigma_hat = sd(x)
+    )
+}
+```
+
+
+
+simulate by running:
+```{r}
+sim_mean_sd(30)
+```
+
+
+suppose we repeat this process, what the distribution of sampele mean and standard deviation will look like
+
+
+## lets simulate a lot
+
+doing a for loop
+```{r}
+output = vector("list", length = 100)
+
+for (i in 1:100) {
+  output[[i]] = sim_mean_sd(n = 30)
+}
+
+bind_rows(output) #bind each list into a row, important!!!!
+```
+
+ubove do not have a import list 
+
+Lets use a loop funciton
+```{r}
+?rerun()
+
+sim_result=
+rerun(100,sim_mean_sd(n=30)) %>% #same output
+  bind_rows()#same output
+```
+
+
+lets look at the result
+
+```{r}
+sim_result %>%
+  ggplot(aes(x=mu_hat)) +
+  geom_density()
+
+
+sim_result %>%
+  ggplot(aes(x=sigma_hat)) +
+  geom_density()
+
+```
+
+```{r}
+sim_result %>%
+  summarize(
+    avg_sample_mean = mean(mu_hat),
+    sd_samp_mean= sd(mu_hat)
+  )
+```
+
+## lets try other sample size
+
+```{r}
+n_list = 
+  list(
+    "n_30"  = 30, 
+    "n_60"  = 60, 
+    "n_120" = 120, 
+    "n_240" = 240)
+
+output = vector("list", length = 4)
+
+
+output[[1]] = rerun(100, sim_mean_sd(n = n_list[[1]])) %>%
+  bind_rows()
+
+output[[2]] = rerun(100, sim_mean_sd(n = n_list[[2]])) %>%
+  bind_rows()
+
+
+for (i in 1:4) {
+  output[[i]] =  rerun(100, sim_mean_sd(n = n_list[[i]])) %>%
+  bind_rows()
+}
+```
+
+
+
+if I want to keep track of everything I have into a data frame
+```{r}
+
+sample_results = 
+tibble(
+  sample_size = c(30,60,120,240)
+) %>%
+  mutate(
+    output_list = map(.x = sample_size,~rerun(1000,sim_mean_sd(.x))), #function inside of a function #rerun a 100 times
+    estmate_df = map(output_list, bind_rows)
+  )  %>%
+  select(-output_list) %>% #i dont want this anymore 
+  unnest(estmate_df)
+
+
+#.x helps you be clear with wjere the element of sample size needs to go infucntion
+#the first arguement to go is .x
+```
+
+
+
+```{r}
+sample_results %>%
+  mutate(
+    sample_size = str_c("n = ", sample_size)
+  )%>%
+  ggplot(aes(x=sample_size, y=mu_hat)) +
+    geom_boxplot()
+  
+```
+
+the order is not making sense 
+```{r}
+
+```
+
+
+```{r}
+sample_results %>%
+mutate(
+    sample_size = str_c("n = ", sample_size),
+    sample_size = fct_inorder(sample_size)
+  )%>%
+  ggplot(aes(x=sample_size, y=mu_hat)) +
+    geom_boxplot()
+```
+
+
+
+```{r}
+sample_results %>%
+mutate(
+    sample_size = str_c("n = ", sample_size),
+    sample_size = fct_inorder(sample_size)
+  )%>%
+  ggplot(aes(x=sample_size, y=mu_hat,fill = sample_size)) +
+    geom_violin()
+```
+
