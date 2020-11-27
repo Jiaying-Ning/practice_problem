@@ -1,0 +1,240 @@
+---
+title: "linear model"
+author: "jiaying Ning"
+date: "11/25/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(ggridges)
+library(readxl)
+
+
+
+knitr::opts_chunk$set(
+  fig.width = 6,
+    fig.asp = .6,
+  out.width = "90%"
+
+)
+
+theme_set(theme_minimal()+theme(legend.position = "bottom"))
+
+options(
+  ggplot2.continuous.colour = "viridis",
+  ggplot2.continuous.fill = "viridis"
+)
+
+scale_color_discrete = scale_color_viridis_d
+scale_fill_discrete =scale_fill_viridis_d
+```
+
+```{r}
+nyc_airbnb=read_csv("./data/nyc_airbnb.csv")
+ 
+nyc_airbnb = 
+  nyc_airbnb %>% 
+  mutate(stars = review_scores_location / 2) %>% 
+  rename(
+    borough = neighbourhood_group,
+    neighborhood = neighbourhood) %>% 
+  filter(borough != "Staten Island") %>% 
+  select(price, stars, borough, neighborhood, room_type)
+```
+
+## fit a model
+
+```{r}
+nyc_airbnb %>%
+  ggplot(aes(x=stars,y=price, color= borough))+
+  geom_point()
+```
+
+let's fit linear model
+```{r}
+fit = lm(price ~ stars + borough, data = nyc_airbnb)
+
+```
+
+
+lets look at result
+```{r, include=FALSE}
+fit
+#function you can do
+summary(fit)
+summary(fit)$coef
+coef(fit)
+fitted.values(fit)
+residuals(fit)
+```
+
+Lets try something better
+```{r}
+broom::glance(fit) #this is a dataframe
+```
+
+```{r}
+broom::tidy(fit)
+#each borough is comparing is comparing to reference group.
+# For stars, for one unit up in stars, with everthing else fixed, we are expecting to see a increase of 31.98 in price
+#
+```
+```{r}
+#the beauty of dataframe
+#produce table
+broom::tidy(fit) %>%
+  select(-std.error, -statistic) %>%
+  mutate(
+    term = str_replace(term,"borough","Borough:")
+  ) %>%
+  knitr::kable()
+
+```
+
+Nest model, fit models:
+fit interaction
+
+```{r}
+nyc_airbnb %>% 
+  lm(price ~ stars * borough + room_type * borough, data = .) 
+```
+
+
+
+## be in control of factor
+
+```{r}
+nyc_airbnb = 
+  nyc_airbnb %>% 
+  mutate(
+    borough = fct_infreq(borough),
+    room_type = fct_infreq(room_type))
+
+fit = lm(price ~ stars + borough, data = nyc_airbnb)
+
+broom::tidy(fit)
+```
+By reorder thee dataset, you are not changing the reference group, because manhattan have most observation
+
+
+## Diagnostics
+```{r}
+modelr::add_residuals(nyc_airbnb, fit) %>%
+#creating a new column called resid that calculate teh residual according to fitted value
+  ggplot(aes(x=borough,y=resid))+
+  geom_violin() +
+  ylim(-500,1500) #zoom in
+```
+we see outlier  in Manhattan brooklyn
+
+```{r}
+nyc_airbnb %>% 
+  modelr::add_residuals(fit) %>% 
+  ggplot(aes(x = stars, y = resid)) + geom_point() +
+  facet_wrap(. ~borough  )
+```
+
+## Hypothesis tests
+
+this give t-test by default
+```{r}
+fit %>%
+  broom::tidy()
+```
+
+What about the significance of borough
+
+```{r}
+fit_null = lm(price~stars, data = nyc_airbnb)
+fit_alt = lm(price~stars + borough, data=nyc_airbnb) 
+
+anova(fit_null,fit_alt) %>%
+  broom::tidy()
+```
+
+##Nest data, fit models
+
+This is formal and complicated
+```{r}
+nyc_airbnb %>% 
+  lm(price ~ stars * borough + room_type * borough, data = .) %>% 
+  broom::tidy() 
+#you get main effect and interaction effect
+```
+
+This is exploratory but easy to understand
+Question: what is the stars effect on different area?
+fit different models separatly in each area:
+```{r}
+#start with nesting everything。nest everything but borogh,given dataset in a nested column,then you fit model to each df
+  nyc_airbnb %>% 
+  nest(data = -borough) 
+
+```
+
+
+
+```{r}
+ nyc_airbnb %>% 
+  nest(data = -borough) %>% 
+  mutate(
+    models = map(data, ~lm(price ~ stars, data = .x)), #giving lm
+    results = map(models, broom::tidy))%>% #tidy lm
+  select(-data,-models) %>%
+  unnest(results) %>%
+  filter(term == "stars")
+
+```
+
+```{r}
+ nyc_airbnb %>% 
+  nest(data = -borough) %>% 
+  mutate(
+    models = map(data, ~lm(price ~ stars + room_type, data = .x)), #giving lm
+    results = map(models, broom::tidy))%>% #tidy lm
+  select(-data,-models) %>%
+  unnest(results) %>%
+  filter(term != "(Intercept)") %>%
+  select(borough,term,estimate) %>%
+  pivot_wider(
+    names_from = borough,
+    values_from = estimate
+  )
+
+#compare interaction
+```
+
+Lets nest even more
+
+same question about room type, stars, and we want to take a look into neiborhood
+```{r}
+nyc_airbnb %>%
+  filter(borough == "Manhattan") %>%#only interested in manhattan
+    nest(data = -neighborhood) %>% #leave out term neighborhood
+  mutate(
+    models = map(data, ~lm(price ~ stars + room_type, data = .x)), #giving lm
+    results = map(models, broom::tidy))%>% #tidy lm
+  select(-data,-models) %>%
+  unnest(results) %>%
+  #fit linear models to each neighborhood
+  filter(str_detect(term,"room_type")) #whats matter with room type across all of these things
+```
+```{r}
+nyc_airbnb %>%
+  filter(borough == "Manhattan") %>%#only interested in manhattan
+    nest(data = -neighborhood) %>% #leave out term neighborhood
+  mutate(
+    models = map(data, ~lm(price ~ stars + room_type, data = .x)), #giving lm
+    results = map(models, broom::tidy))%>% #tidy lm
+  select(-data,-models) %>%
+  unnest(results) %>%
+  #fit linear models to each neighborhood
+  filter(str_detect(term,"room_type")) %>% #whats matter with room type across all of these things
+  ggplot(aes(x=neighborhood, y=estimate))+
+  geom_point()+ 
+  facet_wrap(.~term)+
+  theme(axis.text.x = element_text(angle = 80, hjust = 1))
+```
+
+

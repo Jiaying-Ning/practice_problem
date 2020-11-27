@@ -1,0 +1,167 @@
+---
+title: "try"
+author: "jiaying Ning"
+date: "11/25/2020"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(readxl)
+
+
+knitr::opts_chunk$set(
+  fig.width = 6,
+    fig.asp = .6,
+  out.width = "90%"
+
+)
+
+theme_set(theme_minimal()+theme(legend.position = "bottom"))
+
+
+```
+
+
+
+## import data
+```{r,include=FALSE}
+SBA <- read_csv("./data/sba20.csv")
+SHIELD <- read_csv("./data/uiuc2_unique_new_cases_covid_data_10312020.csv")
+VoteByMail <- read_csv("./data/champaign_county_vote_by_mail_11012020.csv")
+
+```
+
+wrangling data
+```{r}
+
+SHIELD$date <- as.Date(SHIELD$date, "%Y-%m-%d")
+
+
+VoteByMail$`Ballot Req Date` <- as.Date(VoteByMail$`Ballot Req Date`, "%m/%d/%Y")
+VoteByMail$`Ballot Sent Date` <- as.Date(VoteByMail$`Ballot Sent Date`, "%m/%d/%Y")
+VoteByMail$`Ballot Received Date` <- as.Date(VoteByMail$`Ballot Received Date`, "%m/%d/%Y")
+
+SBA$ApprovalDate <- as.Date(SBA$ApprovalDate, "%m/%d/%Y")
+SBA$ApprovalFY <- as.numeric(SBA$ApprovalFY)
+SBA$DisbursementDate <- as.Date(SBA$DisbursementDate, "%m/%d/%Y")
+SBA$ChgOffDate <- as.Date(SBA$ChgOffDate, "%d-%b-%y")
+```
+
+
+
+## problem 4
+
+
+
+
+
+
+```{r}
+
+SBA %>%
+group_by(recession_binary,default_binary) %>% 
+  summarise(counts=n())  %>%
+  mutate(percentage = counts/sum(counts)) %>%
+  na.omit(default_binary) %>%
+  ggplot(aes(x=recession_binary,y=counts,fill = default_binary))+
+           geom_bar(position = position_fill(reverse = TRUE), stat = "identity",color='black',width=0.5)+
+  scale_fill_brewer(palette="Set1")+
+  scale_y_continuous(
+    breaks = c(0.00, 0.20, 0.40,0.60,0.80,1.00),
+    labels = c("0.00%", "20.00%", "40.00%","60.00%","80.00%","100.00%"))+
+  coord_flip()
+```
+
+
+## problem 6
+
+
+```{r}
+VoteByMail %>%
+  group_by(`Ballot Sent Date`) %>%
+  summarise(n=n()) 
+
+VoteByMail %>%
+  group_by(`Ballot Received Date`) %>%
+  summarise(n=n()) 
+
+VoteByMail %>%
+  group_by(`Ballot Req Date`) %>%
+  summarise(n=n()) 
+
+
+
+```
+
+```{r}
+VoteByMail %>%
+  filter(`Ballot Req Date`=="0200-09-02")
+```
+
+
+
+
+
+
+##  problem 9
+
+
+```{r}
+library(ggthemes)
+
+colors <- c("New Cases" = "deepskyblue4", "Case Positivity %" = "darkorange2")
+
+
+```
+
+```{r}
+
+ggplot(SHIELD, aes(x=date)) +
+  
+  geom_bar( aes(y=`New Cases`),fill = "deepskyblue4",stat="identity") + 
+  geom_line( aes(y=`Case Positivity %`*(250/3)),color="darkorange2",size = 1.4) + 
+  scale_y_continuous(
+        breaks = c(50,100,150,200,250),
+        name = "Daily New Cases",
+        sec.axis = sec_axis(~./(250/3), name="Case Positivity %", breaks = c(0.5,1.0,1.5,2.0,2.5,3.0))
+  )+
+  labs(
+    titles = "Unique New Cases",
+    subtitle = "Unique New Cases are the first time an individual is detected COVID-19 positivity by the SHIELD saliva test")+
+    theme_hc()+
+  theme(plot.subtitle=element_text(size = 10, face="bold"),
+        text = element_text(size=10))+
+   scale_x_date(date_breaks = '7 day', 
+                 date_labels = '%a %b%d \n%Y')
+```
+
+## problem 10
+
+
+
+
+
+
+```{r}
+ggplot(SHIELD, aes(x=date)) +
+  geom_line( aes(y=`New Cases`),color = "deepskyblue4",size = 1.4) + 
+  geom_line( aes(y=`Case Positivity %`*(250/3)),color="darkorange2",size = 1.4) + 
+  scale_y_continuous(
+        breaks = c(50,100,150,200,250),
+        name = "Daily New Cases",
+        sec.axis = sec_axis(~./(250/3), name="Case Positivity %", breaks = c(0.5,1.0,1.5,2.0,2.5,3.0))
+  )+
+  labs(
+    titles = "Unique New Cases",
+    subtitle = "Unique New Cases are the first time an individual is detected COVID-19 positivity by the SHIELD saliva test")+
+    theme_hc()+
+  theme(plot.subtitle=element_text(size = 10, face="bold"),
+        text = element_text(size=10))+
+   scale_x_date(date_breaks = '7 day', 
+                 date_labels = '%a %b%d \n%Y') +
+    annotate("text", x = as.Date("2020-07-02", "%Y-%m-%d"), y = 20, label = c("New Case"),color="darkorange2")+
+  annotate("text", x = as.Date("2020-07-04", "%Y-%m-%d"), y = 0, label = c("Case Positivity %"),color="deepskyblue4")
+```
+
